@@ -7,7 +7,7 @@
 // Run locally the way the grader does, with the kit's stand-ins:
 //   mkdir -p out && MAKEFUN_BOT_DIR=. MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { copyFileSync, mkdirSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const botDir = process.env.MAKEFUN_BOT_DIR ?? "/bot";
@@ -17,6 +17,20 @@ mkdirSync(outputDir, { recursive: true });
 
 const source = join(botDir, "POST.json");
 const target = join(outputDir, "POST.json");
+
+// Fail fast with a clear message if POST.json is not the JSON object the
+// gate expects, instead of handing the gate a file it cannot read.
+let post: unknown;
+try {
+  post = JSON.parse(readFileSync(source, "utf8"));
+} catch (error) {
+  console.error(`could not read ${source} as JSON: ${(error as Error).message}`);
+  process.exit(1);
+}
+if (typeof post !== "object" || post === null || typeof (post as { url?: unknown }).url !== "string") {
+  console.error(`${source} must be a JSON object with a string "url" field`);
+  process.exit(1);
+}
 
 try {
   copyFileSync(source, target);
